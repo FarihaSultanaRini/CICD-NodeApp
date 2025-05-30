@@ -1,73 +1,22 @@
-name: CI/CD Pipeline
+- name: Deploy application
+  run: |
+    # Stop existing Node.js server
+    pkill -f "node src/server.js" || true
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    # Start app in background
+    nohup node src/server.js > deploy.log 2>&1 &
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    # Wait for app to start
+    sleep 10
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+    echo "=== Deploy log output ==="
+    cat deploy.log
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests and capture results
-        run: |
-          mkdir -p test-results
-          npm test > test-results/test-output.txt 2>&1 || echo "Tests completed"
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: test-results/
-
-  deploy:
-    needs: test
-    runs-on: self-hosted
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download test results
-        uses: actions/download-artifact@v4
-        with:
-          name: test-results
-          path: ./test-results
-
-      - name: Display test results
-        run: |
-          echo "=== Test Results ==="
-          cat ./test-results/test-output.txt
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Deploy application
-        run: |
-          echo "Stopping existing application..."
-          pkill -f "node" || true
-          
-          echo "Starting application..."
-          nohup npm start > app.log 2>&1 &
-          
-          sleep 5
-          echo "Application deployed successfully"
+    # Check if app started successfully
+    if pgrep -f "node src/server.js" > /dev/null; then
+      echo "✅ Application deployed successfully"
+    else
+      echo "❌ Deployment failed"
+      ps aux | grep node
+      exit 1
+    fi
