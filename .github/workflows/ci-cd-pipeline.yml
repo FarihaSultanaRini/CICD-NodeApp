@@ -62,24 +62,23 @@ jobs:
         run: npm install
 
       - name: Deploy application
+        shell: pwsh
         run: |
-          echo "🛑 Stopping existing app..."
-          pkill -f "node src/server.js" || true
-          pkill -f "node.*server" || true
+          Write-Host "🛑 Stopping existing app..."
+          Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*server.js*" } | Stop-Process -Force
 
-          echo "🚀 Starting app using: node src/server.js"
-          nohup node src/server.js > app.log 2>&1 &
+          Write-Host "🚀 Starting application..."
+          Start-Process "node" -ArgumentList "src/server.js" -NoNewWindow -RedirectStandardOutput "app.log" -RedirectStandardError "app.log"
 
-          echo "⏳ Waiting for process to stabilize..."
-          sleep 5
+          Start-Sleep -Seconds 5
+          Write-Host "📄 Last 20 lines of app.log:"
+          Get-Content "app.log" -Tail 20
 
-          echo "📄 Last 20 lines of app.log:"
-          tail -n 20 app.log || echo "Log not available"
-
-          echo "🔍 Checking process..."
-          if pgrep -f "node src/server.js" > /dev/null; then
-            echo "✅ Application deployed successfully"
-          else
-            echo "❌ Deployment failed: src/server.js is not running"
+          Write-Host "🔍 Checking if app is running..."
+          $running = Get-Process node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*server.js*" }
+          if ($running) {
+            Write-Host "✅ Application deployed successfully"
+          } else {
+            Write-Host "❌ Deployment failed: src/server.js is not running"
             exit 1
-          fi
+          }
