@@ -1,13 +1,15 @@
-name: Simple Test
+name: CI/CD Pipeline
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,7 +37,7 @@ jobs:
     needs: test
     runs-on: self-hosted
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,20 +49,37 @@ jobs:
           path: ./test-results
 
       - name: Display test results
-        run: cat ./test-results/test-output.txt
+        run: |
+          echo "=== Test Results ==="
+          cat ./test-results/test-output.txt
 
-      - name: Basic deployment test
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Deploy application
         run: |
-          echo "=== Deployment Test ==="
-          echo "Current directory: $(pwd)"
-          echo "Files present:"
-          ls -la
-          echo "Node version: $(node --version)"
-          echo "NPM version: $(npm --version)"
-          
-      - name: Install and test start
-        run: |
-          npm install
-          echo "Testing if app can start..."
-          timeout 10s npm start || echo "App test completed"
-          echo "Deployment successful!"
+          echo "🛑 Stopping existing app..."
+          pkill -f "node src/server.js" || true
+          pkill -f "node.*server" || true
+
+          echo "🚀 Starting app using: node src/server.js"
+          nohup node src/server.js > app.log 2>&1 &
+
+          echo "⏳ Waiting for process to stabilize..."
+          sleep 5
+
+          echo "📄 Last 20 lines of app.log:"
+          tail -n 20 app.log || echo "Log not available"
+
+          echo "🔍 Checking process..."
+          if pgrep -f "node src/server.js" > /dev/null; then
+            echo "✅ Application deployed successfully"
+          else
+            echo "❌ Deployment failed: src/server.js is not running"
+            exit 1
+          fi
