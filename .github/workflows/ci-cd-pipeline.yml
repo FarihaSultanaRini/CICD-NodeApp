@@ -36,6 +36,7 @@ jobs:
   deploy:
     needs: test
     runs-on: self-hosted
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -59,9 +60,5 @@ jobs:
 
       - name: Deploy application
         run: |
-          # Example deployment command
-          # You can customize it depending on how you run your Node.js app
-          # For instance, start with pm2, forever, or just node
-          npm run build || echo "No build script, skipping"
+          # Example: start app in background using npm
           nohup npm start &
-
