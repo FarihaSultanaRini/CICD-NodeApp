@@ -66,11 +66,18 @@ jobs:
           echo "Stopping existing application..."
           pkill -f "src/server.js" || true
           pkill -f "node.*server" || true
-          
+
           echo "Starting application with: npm start"
           nohup npm start > app.log 2>&1 &
-          
+
           sleep 5
-          echo "Application deployed successfully"
+          echo "=== Application Log ==="
+          tail -n 20 app.log || echo "Log not available"
+
           echo "Checking if process is running..."
-          ps aux | grep "src/server.js" | grep -v grep || echo "Process check completed"
+          if pgrep -f "src/server.js" > /dev/null; then
+            echo "✅ Application deployed successfully"
+          else
+            echo "❌ Deployment failed: app not running"
+            exit 1
+          fi
